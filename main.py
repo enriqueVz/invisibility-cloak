@@ -2,6 +2,31 @@ import cv2
 import numpy as np
 import time
 
+
+def detectar_color_dominante(frame, size_region=20):
+    altura, ancho, _ = frame.shape
+    x_inicio = ancho // 2 - size_region // 2
+    y_inicio = altura // 2 - size_region // 2
+    region = frame[y_inicio:y_inicio+size_region, x_inicio:x_inicio+size_region]
+
+    hsv_region = cv2.cvtColor(region, cv2.COLOR_BGR2HSV)
+    h_mean = int(np.mean(hsv_region[:,:,0]))
+    s_mean = int(np.mean(hsv_region[:,:,1]))
+    v_mean = int(np.mean(hsv_region[:,:,2]))
+
+    print(f"Color detectado (HSV): H={h_mean}, S={s_mean}, V={v_mean}")
+
+    # Define un margen (ajustable)
+    h_margin = 10
+    s_margin = 60
+    v_margin = 60
+
+    lower = np.array([max(0, h_mean - h_margin), max(0, s_mean - s_margin), max(0, v_mean - v_margin)])
+    upper = np.array([min(179, h_mean + h_margin), min(255, s_mean + s_margin), min(255, v_mean + v_margin)])
+
+    return lower, upper
+
+
 def crear_fondo(captura, nºframes=30):
     print("Capturando el fondo, por favor, no te pongas en medio")
     fondos = []
@@ -46,8 +71,16 @@ def main():
         captura.release()
         return
 
-    lower_blue = np.array([90, 50, 50])
-    upper_blue = np.array([130, 255, 255])
+    print("Coloca la capa frente a la cámara para detectar el color...")
+    time.sleep(3)
+    ret, frame = captura.read()
+    if not ret:
+        print("No se pudo capturar imagen para detectar el color.")
+        captura.release()
+        return
+
+    lower_color, upper_color = detectar_color_dominante(frame)
+
 
     print("Comenzando el loop, para salir, pulsa 'q'.")
     while True:
@@ -57,7 +90,7 @@ def main():
             time.sleep(1)
             continue
 
-        mask = crear_mascara(frame, lower_blue, upper_blue)
+        mask = crear_mascara(frame, lower_color, upper_color)
         resultado = aplicar_efecto(frame, mask, fondo)
 
         cv2.imshow("Capa de la invisibilidad!", resultado)
